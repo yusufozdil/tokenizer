@@ -14,8 +14,8 @@ def load_json(file_path: str) -> Dict[str, int]:
 
 # Load roots, suffixes, and BPE tokens
 roots = load_json("kokler_v08.json")
-suffixes = load_json("ekler_v05.json")
-bpe_tokens = load_json("bpe_v07.json")
+suffixes = load_json("ekler_v06.json")
+bpe_tokens = load_json("bpe_v08.json")
 
 reverse_dict = {}
 
@@ -37,11 +37,11 @@ for key, value in bpe_tokens.items():
 
 # Special token IDs
 SPECIAL_TOKENS = {
+    "<uppercase>": 0,
     "<space>": 1,
     "<newline>": 2,
     "<tab>": 3,
-    "<unknown>": 4,
-    "<uppercase>": 0
+    "<unknown>": 4
 }
 
 # Tokenize the input text
@@ -297,7 +297,7 @@ If the token is suffix than it checks if there is a variation of that suffix and
 '''
 def choose_correct_version(cur_token: list, next_token: list, prev_token: list, cur_token_id: int) -> str:
     # If token is a root
-    if cur_token_id <= 2267:
+    if cur_token_id <= 22567:
         # If there is no cur_token
         if not cur_token:
             return ""
