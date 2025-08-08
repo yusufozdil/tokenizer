@@ -6,6 +6,55 @@ from typing import List, Dict, Tuple
 # Get the directory of the current file
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Turkish case mapping for proper capitalization
+TURKISH_LOWER_MAP = {
+    'İ': 'i',
+    'I': 'ı',
+    'Ş': 'ş',
+    'Ğ': 'ğ',
+    'Ü': 'ü',
+    'Ö': 'ö',
+    'Ç': 'ç'
+}
+
+TURKISH_UPPER_MAP = {
+    'i': 'İ',
+    'ı': 'I',
+    'ş': 'Ş',
+    'ğ': 'Ğ',
+    'ü': 'Ü',
+    'ö': 'Ö',
+    'ç': 'Ç'
+}
+
+def turkish_lower(text: str) -> str:
+    result = ""
+    for char in text:
+        if char in TURKISH_LOWER_MAP:
+            result += TURKISH_LOWER_MAP[char]
+        else:
+            result += char.lower()
+    return result
+
+def turkish_upper(text: str) -> str:
+    result = ""
+    for char in text:
+        if char in TURKISH_UPPER_MAP:
+            result += TURKISH_UPPER_MAP[char]
+        else:
+            result += char.upper()
+    return result
+
+def turkish_capitalize(text: str) -> str:
+    if not text:
+        return text
+    
+    first_char = text[0]
+    if first_char in TURKISH_UPPER_MAP:
+        return TURKISH_UPPER_MAP[first_char] + text[1:]
+    else:
+        return first_char.upper() + text[1:]
+
 # Load JSON files into memory
 def load_json(file_path: str) -> Dict[str, int]:
     full_path = os.path.join(CURRENT_DIR, file_path)
@@ -78,7 +127,7 @@ def tokenize(text: str) -> Dict[str, List]:
                         if part[0].isupper():
                             tokens.append("<uppercase>")
                             ids.append(SPECIAL_TOKENS["<uppercase>"])
-                            process_word(part.lower(), tokens, ids)
+                            process_word(turkish_lower(part), tokens, ids)
                         else:
                             process_word(part, tokens, ids)
             else:
@@ -186,7 +235,6 @@ if __name__ == "__main__":
     """
     
 # ------ DECODE PART ------
-
 
 # These are some useful lists and dictionaries that are used in the decoding part
 vowels = ["a", "e", "ı", "i", "o", "ö", "u", "ü"]
@@ -297,25 +345,28 @@ If the token is suffix than it checks if there is a variation of that suffix and
 '''
 def choose_correct_version(cur_token: list, next_token: list, prev_token: list, cur_token_id: int) -> str:
     # If token is a root
-    if cur_token_id <= 22567:
+    if cur_token_id in roots.values():
         # If there is no cur_token
         if not cur_token:
             return ""
         # If there is softened form of token 
-        if cur_token[0][-1] in hard_consonants and consonant_softening(cur_token[0]) == cur_token[1]:
-            if next_token[0][0] in vowels:
+        if (len(cur_token) > 1 and len(cur_token[0]) > 0 and 
+            cur_token[0][-1] in hard_consonants and consonant_softening(cur_token[0]) == cur_token[1]):
+            if next_token and len(next_token[0]) > 0 and next_token[0][0] in vowels:
                 return cur_token[1]
             else:
                 return cur_token[0]
         # If there is a reduced form of token
-        if cur_token[0][-1] in consonants and vowel_reduction(cur_token[0]) == cur_token[1]:
-            if next_token[0][0] in vowels:
+        if (len(cur_token) > 1 and len(cur_token[0]) > 0 and 
+            cur_token[0][-1] in consonants and vowel_reduction(cur_token[0]) == cur_token[1]):
+            if next_token and len(next_token[0]) > 0 and next_token[0][0] in vowels:
                 return cur_token[1]
             else:
                 return cur_token[0]
         # If there is a narrow vowel form of token
-        if cur_token[0][-1] in ["a", "e"] and narrow_vowel(cur_token[0]) == cur_token[1]:
-            if next_token[0].startswith("yor"):
+        if (len(cur_token) > 1 and len(cur_token[0]) > 0 and 
+            cur_token[0][-1] in ["a", "e"] and narrow_vowel(cur_token[0]) == cur_token[1]):
+            if next_token and len(next_token[0]) > 0 and next_token[0].startswith("yor"):
                 return cur_token[1]
             else:
                 return cur_token[0]
@@ -327,31 +378,46 @@ def choose_correct_version(cur_token: list, next_token: list, prev_token: list, 
         if (len(cur_token) == 16):
             # Suffix has ı-u variation 
             # Check if suffix should be hardened
-            if cur_token[8] != "" and prev_token[0][-1] in hard_consonants:
+            if (len(cur_token) > 8 and cur_token[8] != "" and 
+                prev_token and len(prev_token[0]) > 0 and 
+                prev_token[0][-1] in hard_consonants):
                 suffix_index += 8
             # Check if suffix should be softened
-            if cur_token[suffix_index + 4] != "" and next_token[0][0] in vowels:
+            if (len(cur_token) > suffix_index + 4 and cur_token[suffix_index + 4] != "" and 
+                next_token and len(next_token[0]) > 0 and 
+                next_token[0][0] in vowels):
                 suffix_index += 4
             # Check which vowel should be used
-            suffix_index += i_u_variation_chooser(prev_token, cur_token)
+            if prev_token:
+                suffix_index += i_u_variation_chooser(prev_token, cur_token)
             
         elif (len(cur_token) == 8):
             # Suffix has a-e variation
             # Check if suffix should be hardened
-            if cur_token[4] != "" and prev_token[0][-1] in hard_consonants:
+            if (len(cur_token) > 4 and cur_token[4] != "" and 
+                prev_token and len(prev_token[0]) > 0 and 
+                prev_token[0][-1] in hard_consonants):
                 suffix_index += 4
             # Check if suffix should be softened
-            if cur_token[suffix_index + 2] != "" and next_token[0][0] in vowels:
+            if (len(cur_token) > suffix_index + 2 and cur_token[suffix_index + 2] != "" and 
+                next_token and len(next_token[0]) > 0 and 
+                next_token[0][0] in vowels):
                 suffix_index += 2
             # Check which vowel should be used
-            if last_vowel(prev_token[0]) in front_vowels:
+            if (prev_token and len(prev_token[0]) > 0 and 
+                last_vowel(prev_token[0]) in front_vowels):
                 suffix_index += 1
         else: 
-            return cur_token[0]
+            return cur_token[0] if cur_token else ""
+    
+    # Final safety check and return
     if not cur_token: 
         return ""
-    else:
+    elif suffix_index < len(cur_token):
         return cur_token[suffix_index]
+    else:
+        # If suffix_index is out of bounds, return the first token
+        return cur_token[0] if cur_token else ""
     
 '''
 This is the function that decodes the tokenized text into a readable text.
@@ -359,56 +425,80 @@ The function takes id's a list and then checks if that id has a corresponding to
 If the corresponding value has one variation of token then it directly adds it to the result.
 If the corresponding value has more than one variation of token then it calls choose_correct_version function to add correct form to result.
 '''
-def decode_text(list):
-    prev_token = reverse_dict[list[0]]
+def decode_text(id_list):
+    # Empty list check
+    if not id_list:
+        return ""
+    
     result = ""
+    prev_token = None  # Start with None
+    uppercase_pending = False  # Track if uppercase is pending
+    
     # Iterating through the list
-    for i in range(len(list)):
-        cur_token = reverse_dict[list[i]]
+    for i in range(len(id_list)):
+        # Check if the id is in the reverse_dict
+        if id_list[i] not in reverse_dict:
+            # If the id is not in the reverse_dict, print a warning
+            print(f"Warning: Unknown token ID: {id_list[i]}")
+            continue
+            
+        cur_token = reverse_dict[id_list[i]]
         next_token = []
-        print(cur_token)
-        if i != len(list) - 1: 
-            next_token = reverse_dict[list[i + 1]]
+        
+        if i != len(id_list) - 1 and id_list[i + 1] in reverse_dict: 
+            next_token = reverse_dict[id_list[i + 1]]
         
         if not cur_token:
             continue
-        # Checking if the token is UNKOWN
-        if (cur_token[0] == "[UNKOWN]"):
+            
+        # Checking if the token is UNKNOWN
+        if (cur_token[0] == "<unknown>"):
             prev_token = cur_token
             continue
+            
         # Checking if the token is SPACE
         if (cur_token[0] == "<space>"):
             result += " "
             prev_token = cur_token
             continue
+            
         # Checking if the token is NEWLINE
         if (cur_token[0] == "<newline>"):
             result += "\n"
             prev_token = cur_token
             continue
+            
         # Checking if the token is TAB
         if (cur_token[0] == "<tab>"):
             result += "\t"
             prev_token = cur_token
             continue
+            
         # Checking if the token is UPPERCASE
         if (cur_token[0] == "<uppercase>"):
-            prev_token = cur_token[0]
+            uppercase_pending = True  # Track if uppercase is pending
+            prev_token = cur_token
             continue
-        if (prev_token == "<uppercase>"):
-            result += cur_token[0].capitalize()
-            prev_token = cur_token[0]
+            
+        # If uppercase is pending and the token is not a special token, capitalize the token
+        if uppercase_pending and cur_token[0] not in ["<space>", "<newline>", "<tab>", "<uppercase>", "<unknown>"]:
+            if len(cur_token) == 1:
+                result += turkish_capitalize(cur_token[0])
+            else:
+                # If there are multiple variations of the token, call choose_correct_version to add the correct form to the result
+                chosen_token = choose_correct_version(cur_token, next_token, prev_token, id_list[i])
+                result += turkish_capitalize(chosen_token)
+            
+            uppercase_pending = False  # Reset uppercase_pending
+            prev_token = cur_token
             continue
-        # Checking if the id has more than one corresponding token
+            
+        # Normal token processing
         if (len(cur_token) == 1):
             result += cur_token[0]
             prev_token = cur_token
-            continue
-        # If there are more than one token corresponding to the id we call choose_correct_version function to add correct form to result
         elif (len(cur_token) > 1):
-            result += choose_correct_version(cur_token, next_token, prev_token, i)
+            result += choose_correct_version(cur_token, next_token, prev_token, id_list[i])
             prev_token = cur_token
-            continue
-        else:
-            continue
+            
     return result
